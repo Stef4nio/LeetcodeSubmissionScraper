@@ -22,19 +22,11 @@ namespace LeetcodeSubmissionScraper
             cd.Navigate();
             IWebElement e = cd.FindElementById("id_login");
             e.SendKeys(username);
-            Console.WriteLine("Login entered");
+            Console.WriteLine("Login entered successfully");
             e = cd.FindElementById("id_password");
             e.SendKeys(password);
-            Console.WriteLine("Password entered");
-            try
-            {
-                cd.FindElement(By.Id("initial-loading"));
-                Console.WriteLine("Preloader exists");
-            }
-            catch (NoSuchElementException)
-            {
-                Console.WriteLine("Preloader deleted");
-            }
+            Console.WriteLine("Password entered successfully");
+
             var signInButtonUnlockWait = new WebDriverWait(cd, TimeSpan.FromSeconds(5));
             signInButtonUnlockWait.Until(driver =>
             {
@@ -45,82 +37,130 @@ namespace LeetcodeSubmissionScraper
                 }
                 catch (NoSuchElementException)
                 {
-                    Console.WriteLine("Preloader deleted");
+                    Console.WriteLine("Preloader destroyed, ready for sign in");
                     return true;
                 }
             });
             e = cd.FindElementById("signin_btn");
+            Console.WriteLine("Attempting sign in");
             e.Click();
         }
-        
-        public static void Main(string[] args)
+
+        private static IWebElement GetNextButton(ChromeDriver cd)
         {
-            ChromeDriver cd = new ChromeDriver(@"chromedriver_win32");
-            Login("stef4nio",")g!.&2wZ/d@sd#C",cd);
+            var navButtonsContainerWait = new WebDriverWait(cd, TimeSpan.FromSeconds(5));
+            navButtonsContainerWait.Until(driver => driver.FindElement(By.CssSelector(".pager")).Displayed);
+            Console.WriteLine("Navigation buttons container detected successfully");
             
+            IWebElement nextPageButton =
+                cd.FindElementByCssSelector(".next");
+           return nextPageButton;
+        }
+
+        static (string,string) DownloadCodeFromPage(string submissionUrl, ChromeDriver cd)
+        {
+            Console.WriteLine("Open " + submissionUrl + " in a new tab");
+            ((IJavaScriptExecutor)cd).ExecuteScript("window.open();");
+            cd.SwitchTo().Window(cd.WindowHandles.Last());
+            cd.Navigate().GoToUrl(submissionUrl);
+            Console.WriteLine("Opened new tab successfully");
+            var codeBlockWait = new WebDriverWait(cd, TimeSpan.FromSeconds(5));
+            codeBlockWait.Until(driver => driver.FindElement(By.ClassName("ace_content")).Displayed);
+            IWebElement problemLink = cd.FindElementByCssSelector("a.inline-wrap");
+            string problemName = problemLink.Text;
+            Console.WriteLine("Current problem name: "+problemName);
+            Thread.Sleep(500);
+            IWebElement codeBlock = cd.FindElementByClassName("ace_content");
+            Console.WriteLine("Code block captured. Downloading...");
+            string codeData = codeBlock.FindElement(By.CssSelector("div.ace_layer.ace_text-layer")).GetAttribute("innerHTML");
+            Console.WriteLine("Successfully downloaded code data");
+            Console.WriteLine("Closing tab: " + submissionUrl);
+            cd.Close();
+            cd.SwitchTo().Window(cd.WindowHandles[0]);
+            Console.WriteLine("Tab closed successfully");
+            return (problemName,codeData);
+        }
+        
+        
+        static void DownloadSolutions(ChromeDriver cd)
+        {
             if (!Directory.Exists(SOLUTION_FOLDER))
             {
                 Directory.CreateDirectory(SOLUTION_FOLDER);
             }
             
+            Console.WriteLine("Attempt to load submissions page");
             var submissionsTableWait = new WebDriverWait(cd, TimeSpan.FromSeconds(10));
             submissionsTableWait.Until(driver => driver.FindElement(By.CssSelector(".table")).Displayed);
-            Console.WriteLine("Table loaded");
-
-            var navButtonsContainerWait = new WebDriverWait(cd, TimeSpan.FromSeconds(5));
-            navButtonsContainerWait.Until(driver => driver.FindElement(By.CssSelector(".pager")).Displayed);
-            Console.WriteLine("Navigation buttons container detected");
-            
-            IWebElement nextPageButton =
-                cd.FindElementByCssSelector(".next");
-            Console.WriteLine("\"Next\" button css class attribute: "+nextPageButton.GetAttribute("class"));
-            
-            IWebElement prevPageButton =
-                cd.FindElementByCssSelector(".previous");
-            Console.WriteLine("\"Previous\" button css class attribute: "+prevPageButton.GetAttribute("class"));
-            
-            ReadOnlyCollection<IWebElement> acceptedSubmissionsButtons = cd.FindElementsByClassName("text-success");
-            Console.WriteLine($"Accepted submissions found: {acceptedSubmissionsButtons.Count}");
-            List<string> downloadedProblems = new List<string>();
-            foreach (var button in acceptedSubmissionsButtons)
+            Console.WriteLine("Submissions page loaded. Sign in successful");
+            IWebElement nextButton = GetNextButton(cd);
+            List<string> submissionsToDownload = new List<string>();
+            while (!nextButton.GetAttribute("class").Contains("disabled"))
             {
-                string submissionUrl = button.GetAttribute("href");
-                Console.WriteLine("Open " + submissionUrl + " in a new tab");
-                ((IJavaScriptExecutor)cd).ExecuteScript("window.open();");
-                cd.SwitchTo().Window(cd.WindowHandles.Last());
-                cd.Navigate().GoToUrl(submissionUrl);
-                Console.WriteLine("Opened new tab successfully");
-                var codeBlockWait = new WebDriverWait(cd, TimeSpan.FromSeconds(5));
-                codeBlockWait.Until(driver => driver.FindElement(By.ClassName("ace_content")).Displayed);
-                IWebElement problemLink = cd.FindElementByCssSelector("a.inline-wrap");
-                string problemName = problemLink.Text;
-                Console.WriteLine("Current problem name: "+problemName);
-                if (!downloadedProblems.Contains(problemName))
+                Console.WriteLine($"\"Next\" button is Enabled, continuing scan");
+                Console.WriteLine("Scanning for accepted submissions of current page");
+                ReadOnlyCollection<IWebElement> acceptedSubmissionsButtons = cd.FindElementsByClassName("text-success");
+                Console.WriteLine($"Accepted submissions on current page: {acceptedSubmissionsButtons.Count}. Gathering Links");
+                submissionsToDownload.AddRange(acceptedSubmissionsButtons.Select(button => button.GetAttribute("href")).ToList());
+                cd.Navigate().GoToUrl(nextButton.FindElement(By.XPath("a")).GetAttribute("href"));
+                nextButton = GetNextButton(cd);
+                Thread.Sleep(1000);
+                //Test break for testing purposes
+                break;
+            }
+
+            Console.WriteLine($"\"Next\" button is Disabled, commencing saving sequence");
+            Console.WriteLine($"Detected {submissionsToDownload.Count} accepted submissions");
+            
+            Dictionary<string,int> problemSolutionsAmount = new Dictionary<string, int>();
+            foreach (var submissionUrl in submissionsToDownload)
+            {
+                string problemName, codeData;
+                (problemName, codeData) = DownloadCodeFromPage(submissionUrl, cd);
+                if (!problemSolutionsAmount.ContainsKey(problemName))
                 {
-                    downloadedProblems.Add(problemName);
-                    IWebElement codeBlock = cd.FindElementByClassName("ace_content");
-                    Console.WriteLine("Code block captured. Downloading...");
-                    string currFileFilename = SOLUTION_FOLDER + "/" + problemName + ".txt";
-                    try
-                    {
-                        File.WriteAllText(currFileFilename, codeBlock.GetAttribute("innerHTML"));
-                        Console.WriteLine("Download successful.");
-                    }
-                    catch (Exception exception)
-                    {
-                        Console.Write("Error while writing to file. Exception: ");
-                        Console.WriteLine(exception);
-                    }
+                    problemSolutionsAmount.Add(problemName,1);
                 }
                 else
                 {
-                    Console.WriteLine("Already downloaded solution for: " + problemName);
+                    problemSolutionsAmount[problemName]++;
                 }
-                Console.WriteLine("Closing tab: " + submissionUrl);
-                cd.Close();
-                cd.SwitchTo().Window(cd.WindowHandles[0]);
-                Console.WriteLine("Closed successfully");
+                string filename = $"{SOLUTION_FOLDER}/{problemName} v{problemSolutionsAmount[problemName]}.txt".Replace(' ','_');
+                Console.WriteLine($"Attempt to save solution of {problemName} at:\n{filename}");
+                try
+                {
+                    File.WriteAllText(filename, codeData);
+                    Console.WriteLine($"Saving successful.");
+                }
+                catch (Exception exception)
+                {
+                    Console.Write("Error while writing to file. Exception: ");
+                    Console.WriteLine(exception);
+                    throw;
+                }
+                //Test break to save just one page
+                break;
             }
+            
+        }
+        
+        public static void Main(string[] args)
+        {
+            if (!File.Exists("Credentials.txt"))
+            {
+                File.WriteAllText("Credentials.txt","<username> <password>");
+                Console.WriteLine("First time login. Enter your credentials to Credentials.txt that was just created and restart the program");
+            }
+            else
+            {
+                string credentials = File.ReadAllText("Credentials.txt");
+                ChromeDriver cd = new ChromeDriver(@"chromedriver_win32");
+                Login(credentials.Split(' ')[0],credentials.Split(' ')[1],cd);
+                DownloadSolutions(cd);
+                Console.WriteLine("Scrape completed successfully!!!");   
+            }
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
     }
 }
