@@ -80,8 +80,14 @@ namespace LeetcodeSubmissionScraper
             Console.WriteLine("Tab closed successfully");
             return (problemName,codeData);
         }
-        
-        
+
+        static void RemoveRedunduntDataFromCode(ref string code)
+        {
+            code = code.Replace(
+                "<div class=\"ace_line_group\" style=\"height:17px\"><div class=\"ace_line\" style=\"height:17px\">",
+                "");
+            code = code.Replace("</div></div>", "\n");
+        }
         static void DownloadSolutions(ChromeDriver cd)
         {
             if (!Directory.Exists(SOLUTION_FOLDER))
@@ -105,8 +111,6 @@ namespace LeetcodeSubmissionScraper
                 cd.Navigate().GoToUrl(nextButton.FindElement(By.XPath("a")).GetAttribute("href"));
                 nextButton = GetNextButton(cd);
                 Thread.Sleep(1000);
-                //Test break for testing purposes
-                break;
             }
 
             Console.WriteLine($"\"Next\" button is Disabled, commencing saving sequence");
@@ -127,6 +131,7 @@ namespace LeetcodeSubmissionScraper
                 }
                 string filename = $"{SOLUTION_FOLDER}/{problemName} v{problemSolutionsAmount[problemName]}.txt".Replace(' ','_');
                 Console.WriteLine($"Attempt to save solution of {problemName} at:\n{filename}");
+                RemoveRedunduntDataFromCode(ref codeData);
                 try
                 {
                     File.WriteAllText(filename, codeData);
@@ -138,8 +143,6 @@ namespace LeetcodeSubmissionScraper
                     Console.WriteLine(exception);
                     throw;
                 }
-                //Test break to save just one page
-                break;
             }
             
         }
@@ -157,7 +160,8 @@ namespace LeetcodeSubmissionScraper
                 ChromeDriver cd = new ChromeDriver(@"chromedriver_win32");
                 Login(credentials.Split(' ')[0],credentials.Split(' ')[1],cd);
                 DownloadSolutions(cd);
-                Console.WriteLine("Scrape completed successfully!!!");   
+                Console.WriteLine("Scrape completed successfully!!!");
+                cd.Quit();
             }
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
