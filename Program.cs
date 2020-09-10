@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -16,6 +18,67 @@ namespace LeetcodeSubmissionScraper
     {
         const string SOLUTION_FOLDER = "Solution";
 
+        private static string GetGoogleChromeVersion()
+        {
+            string googleChromeVersionQuery =
+                "reg query \"HKEY_CURRENT_USER\\Software\\Google\\Chrome\\BLBeacon\" /v version";
+            try
+            {
+                ProcessStartInfo procStartInfo =
+                    new ProcessStartInfo("cmd", "/c " + googleChromeVersionQuery);
+                procStartInfo.RedirectStandardOutput = true;
+                procStartInfo.UseShellExecute = false;
+                procStartInfo.CreateNoWindow = true;
+                Process proc = new Process();
+                proc.StartInfo = procStartInfo;
+                proc.Start();
+                string result = proc.StandardOutput.ReadToEnd();
+                return result.Split(' ')[12].Trim();
+            }
+            catch (Exception objException)
+            {
+                // Log the exception
+                Console.Error.WriteLine(
+                    "There was an error getting your Google Chrome version. Contact the developer for resolving this issue");
+                return "";
+            }
+        }
+
+        private static void DownloadChromeDriver(string version)
+        {
+            if (version == "")
+            {
+                throw new Exception("Couldn't get your Google Chrome version. Please contact the developer for resolving this issue");
+            }
+            using (var client = new WebClient())
+            {
+                try
+                {
+                    Console.WriteLine("Attempting to download ChromeDriver version: "+version);
+                    client.DownloadFile($"http://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip",
+                        "chromedriver_win32.zip");
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine("Couldn't download ChromeDriver. Please contact the developer for resolving this issue");
+                    throw;
+                }
+            }
+            Console.WriteLine("Download successful. Unzipping files...");
+            try
+            {
+                ZipFile.ExtractToDirectory("chromedriver_win32.zip","chromedriver_win32");
+                File.Delete("chromedriver_win32.zip");
+            }
+            catch (Exception e)
+            {
+                Console.Error.Write("Couldn't unzip file. Please contact the developer for resolving this issue");
+                Console.WriteLine(e);
+                throw;
+            }
+            Console.WriteLine("Unzipping successful");
+        }
+        
         private static void Login(string username, string password, ChromeDriver cd)
         {
             cd.Url = @"https://leetcode.com/submissions/#/1";
@@ -117,10 +180,11 @@ namespace LeetcodeSubmissionScraper
             Console.WriteLine($"Detected {submissionsToDownload.Count} accepted submissions");
             
             Dictionary<string,int> problemSolutionsAmount = new Dictionary<string, int>();
-            foreach (var submissionUrl in submissionsToDownload)
+            for(int i = 0;i<submissionsToDownload.Count;i++)
             {
+                Console.Write($"[{i+1}/{submissionsToDownload.Count}] ");
                 string problemName, codeData;
-                (problemName, codeData) = DownloadCodeFromPage(submissionUrl, cd);
+                (problemName, codeData) = DownloadCodeFromPage(submissionsToDownload[i], cd);
                 if (!problemSolutionsAmount.ContainsKey(problemName))
                 {
                     problemSolutionsAmount.Add(problemName,1);
@@ -151,8 +215,13 @@ namespace LeetcodeSubmissionScraper
         {
             if (!File.Exists("Credentials.txt"))
             {
+                Console.WriteLine("First time login detected. Downloading additional files...");
+                Console.WriteLine("Getting your Google Chrome version...");
+                string version = GetGoogleChromeVersion();
+                Console.WriteLine("Your Google Chrome version is: "+version);
+                DownloadChromeDriver(version);
                 File.WriteAllText("Credentials.txt","<username> <password>");
-                Console.WriteLine("First time login. Enter your credentials to Credentials.txt that was just created and restart the program");
+                Console.WriteLine("Enter your credentials to Credentials.txt that was just created and restart the program");
             }
             else
             {
@@ -161,7 +230,7 @@ namespace LeetcodeSubmissionScraper
                 Login(credentials.Split(' ')[0],credentials.Split(' ')[1],cd);
                 DownloadSolutions(cd);
                 Console.WriteLine("Scrape completed successfully!!!");
-                cd.Quit();
+                cd.Close();
             }
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();

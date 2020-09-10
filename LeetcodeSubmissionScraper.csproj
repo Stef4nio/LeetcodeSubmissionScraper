@@ -32,10 +32,16 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
+        <Reference Include="mscorlib" />
         <Reference Include="System" />
         <Reference Include="System.Core" />
         <Reference Include="System.Data" />
         <Reference Include="System.Drawing" />
+        <Reference Include="System.IO.Compression.FileSystem" />
+        <Reference Include="System.IO.Compression.ZipFile, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+          <HintPath>packages\System.IO.Compression.ZipFile.4.3.0\lib\net46\System.IO.Compression.ZipFile.dll</HintPath>
+          <Private>True</Private>
+        </Reference>
         <Reference Include="System.Xml" />
         <Reference Include="WebDriver, Version=4.0.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>packages\Selenium.WebDriver.4.0.0-alpha05\lib\net47\WebDriver.dll</HintPath>
