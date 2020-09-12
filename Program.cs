@@ -167,18 +167,27 @@ namespace LeetcodeSubmissionScraper
             WaitForSubmissionsTable(cd, 600000);
             IWebElement nextButton = GetNextButton(cd);
             List<string> submissionsToDownload = new List<string>();
-            while (!nextButton.GetAttribute("class").Contains("disabled"))
+            do
             {
-                Console.WriteLine($"\"Next\" button is Enabled, continuing scan");
+                Console.WriteLine($"Continuing scan");
                 Console.WriteLine("Scanning for accepted submissions of current page");
                 ReadOnlyCollection<IWebElement> acceptedSubmissionsButtons = cd.FindElementsByClassName("text-success");
-                Console.WriteLine($"Accepted submissions on current page: {acceptedSubmissionsButtons.Count}. Gathering Links");
-                submissionsToDownload.AddRange(acceptedSubmissionsButtons.Select(button => button.GetAttribute("href")).ToList());
-                cd.Navigate().GoToUrl(nextButton.FindElement(By.XPath("a")).GetAttribute("href"));
-                nextButton = GetNextButton(cd);
-            }
+                Console.WriteLine(
+                    $"Accepted submissions on current page: {acceptedSubmissionsButtons.Count}. Gathering Links");
+                submissionsToDownload.AddRange(acceptedSubmissionsButtons.Select(button => button.GetAttribute("href"))
+                    .ToList());
+                try
+                {
+                    cd.Navigate().GoToUrl(nextButton.FindElement(By.XPath("a")).GetAttribute("href"));
+                    nextButton = GetNextButton(cd);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Seems that there is only one submissions page.");
+                }
+            } while (!nextButton.GetAttribute("class").Contains("disabled"));
 
-            Console.WriteLine($"\"Next\" button is Disabled, commencing saving sequence");
+            Console.WriteLine($"Commencing saving sequence");
             Console.WriteLine($"Detected {submissionsToDownload.Count} accepted submissions");
             
             Dictionary<string,int> problemSolutionsAmount = new Dictionary<string, int>();
