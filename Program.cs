@@ -151,10 +151,9 @@ namespace LeetcodeSubmissionScraper
         
         static void RemoveRedunduntDataFromCode(ref string code)
         {
-            code = code.Replace(
-                "<div class=\"ace_line_group\" style=\"height:17px\"><div class=\"ace_line\"","");
-            code = Regex.Replace(code, " style=\"height:\\d{1,4}px\">", " ");
+            code = Regex.Replace(code, "<div class=\"ace_line_group\" style=\"height:\\d{1,4}px\"><div class=\"ace_line\" style=\"height:\\d{1,4}px\">", "");
             code = code.Replace("</div></div>", "\n");
+            code = WebUtility.HtmlDecode(code);
         }
         
         //downloadType: 1 - all submissions, 2 - one for each problem
