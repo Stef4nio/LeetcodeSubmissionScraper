@@ -18,6 +18,7 @@ namespace LeetcodeSubmissionScraper
     internal class Program
     {
         const string SOLUTION_FOLDER = "Solution";
+        const string ERROR_FILE = "Crash.log";
 
         private static string GetGoogleChromeVersion()
         {
@@ -41,6 +42,7 @@ namespace LeetcodeSubmissionScraper
                 // Log the exception
                 Console.Error.WriteLine(
                     "There was an error getting your Google Chrome version. Contact the developer for resolving this issue");
+                    File.WriteAllText(ERROR_FILE,objException.ToString());
                 return "";
             }
         }
@@ -62,6 +64,7 @@ namespace LeetcodeSubmissionScraper
                 catch (Exception e)
                 {
                     Console.Error.WriteLine("Couldn't download ChromeDriver. Please contact the developer for resolving this issue");
+                    File.WriteAllText(ERROR_FILE,e.ToString());
                     throw;
                 }
             }
@@ -74,7 +77,7 @@ namespace LeetcodeSubmissionScraper
             catch (Exception e)
             {
                 Console.Error.Write("Couldn't unzip file. Please contact the developer for resolving this issue");
-                Console.WriteLine(e);
+                File.WriteAllText(ERROR_FILE,e.ToString());
                 throw;
             }
             Console.WriteLine("Unzipping successful");
@@ -238,7 +241,7 @@ namespace LeetcodeSubmissionScraper
                 catch (Exception exception)
                 {
                     Console.Write("Error while writing to file. Exception: ");
-                    Console.WriteLine(exception);
+                    File.WriteAllText(ERROR_FILE,exception.ToString());
                     throw;
                 }
             }
@@ -267,6 +270,7 @@ namespace LeetcodeSubmissionScraper
             catch (Exception e)
             {
                 Console.Error.WriteLine("Invalid input. Shutting down.");
+                File.WriteAllText(ERROR_FILE,e.ToString());
                 throw;
             }
             ChromeDriver cd = new ChromeDriver(@"chromedriver_win32");
