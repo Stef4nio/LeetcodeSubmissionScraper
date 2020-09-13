@@ -1,5 +1,7 @@
 # LeetcodeSubmissionScraper
 A Selenium based app that downloads all your submissions from leetcode.
+
+
 This app requires Google Chrome to work, so be sure to install it.
 After unzipping the file just run .exe. It will automatically download some additional modules which cannot be included because they depend on your Google Chrome version.
 Then choose whether you want to download every accepted submission that exists or just the latest for each problem.
