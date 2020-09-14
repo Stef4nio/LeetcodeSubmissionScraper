@@ -57,8 +57,17 @@ namespace LeetcodeSubmissionScraper
             {
                 try
                 {
-                    Console.WriteLine("Attempting to download ChromeDriver version: "+version);
-                    client.DownloadFile($"http://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip",
+                    WebRequest chromeDriverVersionRequest = WebRequest.Create("http://chromedriver.storage.googleapis.com/LATEST_RELEASE_"+version.Split('.')[0]);
+                    WebResponse response = chromeDriverVersionRequest.GetResponse();
+                    string chromeDriverLatestVersion;
+                    using (Stream dataStream = response.GetResponseStream())
+                    {
+                        StreamReader reader = new StreamReader(dataStream);
+                        chromeDriverLatestVersion = reader.ReadToEnd();
+                    }
+                    Console.WriteLine("Attempting to download ChromeDriver version: "+chromeDriverLatestVersion);
+                    
+                    client.DownloadFile($"http://chromedriver.storage.googleapis.com/{chromeDriverLatestVersion}/chromedriver_win32.zip",
                         "chromedriver_win32.zip");
                 }
                 catch (Exception e)
